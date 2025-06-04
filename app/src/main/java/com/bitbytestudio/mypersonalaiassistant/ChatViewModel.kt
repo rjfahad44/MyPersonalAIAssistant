@@ -39,7 +39,10 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.Default) {
             //val downloadUrl = "https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-BF16.gguf?download=true"
             //val modelFile = appContext.downloadModelToFile("gemma-3-1b-it-BF16.gguf", "gemma_3_1b.gguf").absolutePath
-            val modelFile = copyAssetToFile("gemma-3-1b-it-BF16.gguf", "gemma_3_1b.gguf").absolutePath
+            val modelFile = copyAssetToFile(
+                /*your model name*/ "Qwen3-0.6B-Q8_0.gguf",
+                /*copy model name*/"Qwen3.gguf")
+                .absolutePath
             Log.d("fahad007", "Model file path: ${modelFile}")
             LLamaAndroid.instance().load(modelFile)
         }
