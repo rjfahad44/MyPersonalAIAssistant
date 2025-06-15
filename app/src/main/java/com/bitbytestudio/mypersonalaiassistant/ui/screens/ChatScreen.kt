@@ -1,6 +1,7 @@
 package com.bitbytestudio.mypersonalaiassistant.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -52,47 +53,38 @@ fun ChatScreen(
 
     val listState = rememberLazyListState()
 
-    LaunchedEffect(messages.size, isThinking) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size)
-        }
-    }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+    Column(
+        modifier = Modifier
+            .fillMaxSize(),
+        verticalArrangement = Arrangement.Bottom
     ) {
-        Column(
+
+        LazyColumn(
+            state = listState,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 60.dp)
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            reverseLayout = true
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize(),
-                contentPadding = PaddingValues(8.dp)
-            ) {
-                items(messages.size, key = { index -> "$index-${messages[index].first.hashCode()}" }) { index ->
-                    val (message, isUser) = messages[index]
-                    ChatBubble(message = message, isUser = isUser)
-                    Spacer(Modifier.height(4.dp))
-                }
-                if (isThinking) {
-                    item {
-                        TypingIndicator()
-                    }
+            items(messages.size, key = { index -> "$index-${messages[index].first.hashCode()}" }) { index ->
+                val (message, isUser) = messages[index]
+                ChatBubble(message = message, isUser = isUser)
+                Spacer(Modifier.height(4.dp))
+            }
+            if (isThinking) {
+                item {
+                    TypingIndicator()
                 }
             }
         }
 
+
         Row(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(8.dp)
                 .fillMaxWidth()
-                .height(60.dp),
+                .padding(vertical = 16.dp, horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
