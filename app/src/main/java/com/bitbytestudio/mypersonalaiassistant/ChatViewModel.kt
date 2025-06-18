@@ -3,8 +3,10 @@ package com.bitbytestudio.mypersonalaiassistant
 import android.app.Application
 import android.content.Context
 import android.llama.cpp.LLamaAndroid
+import android.net.Uri
 import android.os.Environment
 import android.util.Log
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,9 +14,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 
@@ -23,15 +28,42 @@ class ChatViewModel @Inject constructor(
     private val appContext: Application,
 ) : ViewModel() {
 
-    private val MODEL_NAME = "AI_MODEL.gguf"
+    private val llama = LLamaAndroid.instance()
 
     private val _isThinking = MutableStateFlow(false)
-
     val isThinking: StateFlow<Boolean> = _isThinking
-    private val _messages = MutableStateFlow<List<Pair<String, Boolean>>>(emptyList())
 
+    private val _messages = MutableStateFlow<List<Pair<String, Boolean>>>(emptyList())
     val messages: StateFlow<List<Pair<String, Boolean>>> = _messages
+
     private var job: Job? = null
+    private val _isLoadingModel = MutableStateFlow(false)
+
+    val isLoadingModel: StateFlow<Boolean> = _isLoadingModel.asStateFlow()
+    var modelName = mutableStateOf("")
+
+    fun loadModelFromUri(context: Context, uri: Uri, fileName: String) {
+        viewModelScope.launch {
+            _isLoadingModel.value = true
+            try {
+                withContext(Dispatchers.IO) {
+                    val modelFile = File(context.cacheDir, fileName)
+                    // Scoped storage safe copy
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(modelFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    llama.load(modelFile.absolutePath) // also runs on dedicated dispatcher in LLamaAndroid
+                }
+            } catch (e: Exception) {
+                Log.e("ModelLoad", "Failed to load model", e)
+            } finally {
+                _isLoadingModel.value = false
+            }
+        }
+    }
+
 
     fun loadModel() {
         viewModelScope.launch(Dispatchers.Default) {
@@ -51,7 +83,7 @@ class ChatViewModel @Inject constructor(
 
     fun modelPath(): String? {
         val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val modelFile = File(downloadsDir, MODEL_NAME)
+        val modelFile = File(downloadsDir, "MODEL_NAME")
         return if (modelFile.exists()) {
             modelFile.absolutePath
         } else {
@@ -64,23 +96,8 @@ class ChatViewModel @Inject constructor(
 You are Jarvis, a helpful, honest, and intelligent AI assistant created by Fahad Alam. Your job is to provide clear, thoughtful answers to any questions the user may ask. You can help with code, writing, daily tasks, and more. Be conversational and friendly while remaining informative.
 """.trimIndent()
 
-    init {
-        loadModel()
-    }
-
     private val formatChat = true
     private var isFirstTime = true
-    private val deepSeekSystemPrompt = "You are DeepSeek, a highly capable, distilled AI assistant trained to understand and respond to human instructions with precision and clarity. Communicate in a helpful, polite, and professional tone. Your primary goals are:\n" +
-            "\n" +
-            "- Answer questions accurately and concisely.\n" +
-            "- Help with code, writing, logic, and problem-solving.\n" +
-            "- Ask clarifying questions when user instructions are vague.\n" +
-            "- Avoid hallucinations—only respond based on known and logical information.\n" +
-            "- When unsure, say \"I’m not sure\" rather than guessing.\n" +
-            "- Respond in markdown format when appropriate (e.g., for code, lists, or clarity).\n" +
-            "- Always prioritize user privacy and never fabricate personal data.\n" +
-            "- Maintain a friendly but focused tone; avoid unnecessary embellishments.\n" +
-            "- You can answer in English and Bengali if requested.\n"
 
     fun sendMessage(prompt: String) {
         _messages.update { it + (prompt to true) }
@@ -90,7 +107,7 @@ You are Jarvis, a helpful, honest, and intelligent AI assistant created by Fahad
             val fullPrompt = if (isFirstTime) {
                 buildString {
                     append("[INST] <<SYS>>\n")
-                    append(deepSeekSystemPrompt)
+                    append(systemPrompt)
                     append("\n<</SYS>>\n\n")
                     append(prompt)
                     append(" [/INST]")
@@ -114,89 +131,9 @@ You are Jarvis, a helpful, honest, and intelligent AI assistant created by Fahad
         }
     }
 
-
-
-//    fun sendMessage(prompt: String) {
-//        _messages.update { it + (prompt to true) }
-//        job?.cancel()
-//        _isThinking.value = true
-//
-//        job = viewModelScope.launch {
-//            val m = "<|system|>\n$systemPrompt\n\n\n<|user|>\n$prompt"
-//            LLamaAndroid.instance().send(m, formatChat = false).collect { token ->
-//                _messages.update { current ->
-//                    val last = current.lastOrNull()
-//                    if (last != null && !last.second) {
-//                        current.dropLast(1) + ((last.first + token) to false)
-//                    } else {
-//                        current + (token to false)
-//                    }
-//                }
-//            }
-//            _isThinking.value = false
-//        }
-//    }
-
-    private fun buildChatHistoryGemma3(currentPrompt: String): String {
-        if (!formatChat) return currentPrompt
-        val history = StringBuilder()
-        val messages = _messages.value
-
-        // Inject the system prompt as an internal assistant reply (not user)
-        if (messages.isEmpty()) {
-            history.appendLine("<start_of_turn>system")
-            history.appendLine(systemPrompt)
-            history.appendLine("<end_of_turn>")
-            history.appendLine("<start_of_turn>model")
-            history.appendLine(systemPrompt)
-            history.appendLine("<end_of_turn>")
-        }
-
-        for ((message, isUser) in messages) {
-            history.appendLine("<start_of_turn>${if (isUser) "user" else "model"}")
-            history.appendLine(message)
-            history.appendLine("<end_of_turn>")
-        }
-
-        history.appendLine("<start_of_turn>user")
-        history.appendLine(currentPrompt)
-        history.appendLine("<end_of_turn>")
-        history.appendLine("<start_of_turn>model")
-
-        return history.toString()
-    }
-
-    private fun buildChatHistory(currentPrompt: String): String {
-        val history = StringBuilder()
-        history.appendLine(systemPrompt)
-
-        val messages = _messages.value
-
-        for ((message, isUser) in messages) {
-            if (isUser) {
-                history.appendLine("<|user|>\n$message")
-            } else {
-                history.appendLine("<|system|>\n$message")
-            }
-        }
-
-        // Add the new user message
-        history.appendLine("<|user|>\n$currentPrompt")
-
-        return history.toString()
-    }
-
-
-    private fun copyAssetToFile(assetName: String, targetFileName: String): File {
-        val outFile = File(appContext.filesDir, targetFileName)
-        if (!outFile.exists()) {
-            appContext.assets.open(assetName).use { input ->
-                outFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-        }
-        return outFile
+    fun cancelGeneration() {
+        job?.cancel()
+        _isThinking.value = false
     }
 
     override fun onCleared() {

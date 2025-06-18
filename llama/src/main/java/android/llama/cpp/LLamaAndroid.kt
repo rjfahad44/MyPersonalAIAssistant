@@ -4,7 +4,6 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -103,7 +102,7 @@ class LLamaAndroid {
                     val context = new_context(model)
                     if (context == 0L) throw IllegalStateException("new_context() failed")
 
-                    val batch = new_batch(2048, 0, 1) //512
+                    val batch = new_batch(512, 0, 1) //512
                     if (batch == 0L) throw IllegalStateException("new_batch() failed")
 
                     val sampler = new_sampler()
@@ -127,7 +126,6 @@ class LLamaAndroid {
                     if (str.isNullOrEmpty()) break
                     emit(str)
                 }
-                //if (!formatChat) kv_cache_clear(state.context)
                 kv_cache_clear(state.context)
             }
 
@@ -189,3 +187,5 @@ class LLamaAndroid {
         fun instance(): LLamaAndroid = _instance
     }
 }
+
+

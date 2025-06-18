@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">MyPersonalAIAssistant</string>
+    <string name="select_model">Select Model</string>
 </resources>
