@@ -11,6 +11,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,7 +46,7 @@ class MainActivity : ComponentActivity() {
                 onResult = { uri ->
                     uri?.let {
                         viewModel.modelName.value = getFileNameFromUri(this, it) ?: "model.gguf"
-                        viewModel.loadModelFromUri(this, it, viewModel.modelName.value)
+                        viewModel.loadModelFromUri(it)
                     }
                 }
             )
@@ -56,6 +57,9 @@ class MainActivity : ComponentActivity() {
                             title = viewModel.modelName.value.takeIf { it.isNotEmpty() },
                             onModelSelect = {
                                 pickModelFileLauncher.launch(arrayOf("application/octet-stream"))
+                            },
+                            onChatClear = {
+                                viewModel.clearChat()
                             }
                         )
                     },
@@ -75,7 +79,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppBar(title: String? = null, onModelSelect: () -> Unit) {
+fun AppBar(title: String? = null, onModelSelect: () -> Unit, onChatClear: () -> Unit) {
     TopAppBar(
         title = {
             Text(
@@ -88,6 +92,9 @@ fun AppBar(title: String? = null, onModelSelect: () -> Unit) {
         actions = {
             IconButton(onClick = onModelSelect) {
                 Icon(Icons.Default.FileOpen, contentDescription = "Select Model")
+            }
+            IconButton(onClick = onChatClear) {
+                Icon(Icons.Default.Delete, contentDescription = "Clear Chat")
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
