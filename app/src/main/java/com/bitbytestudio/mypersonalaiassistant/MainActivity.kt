@@ -10,6 +10,7 @@ import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bitbytestudio.mypersonalaiassistant.ui.screens.ChatScreen
 import com.bitbytestudio.mypersonalaiassistant.ui.theme.MyPersonalAIAssistantTheme
@@ -39,6 +41,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        //WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             val viewModel: ChatViewModel = hiltViewModel()
             val pickModelFileLauncher = rememberLauncherForActivityResult(
@@ -46,7 +49,7 @@ class MainActivity : ComponentActivity() {
                 onResult = { uri ->
                     uri?.let {
                         viewModel.modelName.value = getFileNameFromUri(this, it) ?: "model.gguf"
-                        viewModel.loadModelFromUri(it)
+                        viewModel.loadModelFromUri(it, viewModel.modelName.value)
                     }
                 }
             )
@@ -63,12 +66,13 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
                 ) { innerPadding ->
                     Surface(
                         modifier = Modifier.fillMaxSize().padding(innerPadding)
                     ) {
-                        ChatScreen(modifier = Modifier.fillMaxSize(), viewModel = viewModel)
+                        ChatScreen(viewModel = viewModel)
                     }
                 }
             }

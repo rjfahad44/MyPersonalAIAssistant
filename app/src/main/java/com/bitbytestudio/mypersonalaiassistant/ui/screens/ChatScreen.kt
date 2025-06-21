@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.bitbytestudio.mypersonalaiassistant.ChatUiMessage
 import com.bitbytestudio.mypersonalaiassistant.ChatViewModel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -66,17 +68,20 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     LaunchedEffect(messages.size) {
-        listState.animateScrollToItem(0)
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
+        }
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0xFFE8F5E9), Color.White)
                 )
             )
+            .imePadding()
     ) {
         Column(
             modifier = Modifier
@@ -89,12 +94,12 @@ fun ChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(start = 8.dp, end = 8.dp, bottom = 8.dp),
                 //reverseLayout = true
             ) {
-                items(messages.size, key = { index -> "$index-${messages[index].first.hashCode()}" }) { index ->
-                    val (message, isUser) = messages[index]
-                    ChatBubble(message = message, isUser = isUser)
+                items(messages.size, key = { index -> "$index-${messages[index].timestamp.hashCode()}" }) { index ->
+                    val message = messages[index]
+                    ChatBubble(message = message)
                 }
 
                 if (isThinking) {
@@ -109,12 +114,14 @@ fun ChatScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .imePadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             TextField(
                 value = prompt,
                 onValueChange = { prompt = it },
+                maxLines = 5,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 56.dp),
@@ -137,7 +144,7 @@ fun ChatScreen(
                         prompt = ""
                     }
                 },
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier
             ) {
                 Icon(
                     imageVector = if (isThinking) Icons.Default.Stop else Icons.Default.Send,
@@ -162,11 +169,11 @@ fun ChatScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ChatBubble(message: String, isUser: Boolean) {
-    val backgroundColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-    val textColor = if (isUser) Color.White else Color.Black
-    val alignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleShape = if (isUser) {
+fun ChatBubble(message: ChatUiMessage) {
+    val backgroundColor = if (message.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary
+    val textColor = if (message.isUser) Color.White else Color.Black
+    val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
+    val bubbleShape = if (message.isUser) {
         RoundedCornerShape(16.dp, 0.dp, 16.dp, 16.dp)
     } else {
         RoundedCornerShape(0.dp, 16.dp, 16.dp, 16.dp)
@@ -176,7 +183,7 @@ fun ChatBubble(message: String, isUser: Boolean) {
     val clipboardManager = LocalClipboardManager.current
 
     val currentTime = remember {
-        SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date())
+        SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault()).format(Date(message.timestamp))
     }
 
     Box(
@@ -187,19 +194,19 @@ fun ChatBubble(message: String, isUser: Boolean) {
     ) {
         Column(
             modifier = Modifier
+                .background(color = backgroundColor, shape = bubbleShape)
                 .combinedClickable(
                     onClick = {},
                     onLongClick = {
-                        clipboardManager.setText(AnnotatedString(message))
+                        clipboardManager.setText(AnnotatedString(message.text))
                         Toast.makeText(context, "Message copied", Toast.LENGTH_SHORT).show()
                     }
                 )
-                .background(color = backgroundColor, shape = bubbleShape)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .widthIn(max = 300.dp)
         ) {
             Text(
-                text = message,
+                text = message.text,
                 color = textColor,
                 style = MaterialTheme.typography.bodyMedium
             )

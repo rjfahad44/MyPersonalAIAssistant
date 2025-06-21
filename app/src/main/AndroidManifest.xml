@@ -21,7 +21,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:windowSoftInputMode="adjustPan"
+            android:windowSoftInputMode="adjustResize|adjustPan"
             android:label="@string/app_name"
             android:theme="@style/Theme.MyPersonalAIAssistant">
             <intent-filter>
